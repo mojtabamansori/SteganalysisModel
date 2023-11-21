@@ -16,11 +16,11 @@ from tqdm import tqdm
 def dataload(payload):
     payload = payload
 
-    ste_model_cover = 'cover'
-    ste_model_LSB = 'LSB'
-    ste_model_HOGO = 'HOGO'
-    ste_model_WOW = 'WOW'
-    ste_model_UNIWARD = 'UNIWARD'
+    ste_model_cover = 'cover - Copy'
+    ste_model_LSB = 'LSB - Copy'
+    ste_model_HOGO = 'HOGO - Copy'
+    ste_model_WOW = 'WOW - Copy'
+    ste_model_UNIWARD = 'UNIWARD - Copy'
 
     base_folder_cover = f'C:/Users/ns/Desktop/paksersht/Code Email/{ste_model_cover}/{payload}'
     base_folder_LSB = f'C:/Users/ns/Desktop/paksersht/Code Email/{ste_model_LSB}/{payload}'

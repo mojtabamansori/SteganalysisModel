@@ -60,7 +60,7 @@ val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
 steganalysis_model = SteganalysisModel()
 steganalysis_model = steganalysis_model.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(steganalysis_model.parameters(), lr=0.001)
+optimizer = optim.Adam(steganalysis_model.parameters(), lr=0.01)
 scheduler = ReduceLROnPlateau(optimizer, mode='max', patience=5, factor=0.1, verbose=True)
 
 early_stopping_counter = 0
