@@ -13,8 +13,23 @@ from tqdm import tqdm
 from function_gpu_accessibility import gpu_acces
 from function_dataload import dataload
 from function_model import SteganalysisModel
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.nn.functional import one_hot
+
+
+from scipy.fftpack import dct
+
+class DCTTransform(object):
+    def __init__(self):
+        pass
+
+    def __call__(self, img):
+        # Assuming img is a tensor
+        img = img.numpy()
+
+        # Apply 2D DCT to each channel
+        for i in range(img.shape[0]):
+            img[i] = dct(dct(img[i], axis=0, norm='ortho'), axis=1, norm='ortho')
+
+        return torch.from_numpy(img)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 gpu_acces()
@@ -45,6 +60,7 @@ class UnifiedSteganographyDataset(Dataset):
 
 transform = transforms.Compose([
     transforms.ToTensor(),
+    DCTTransform()
 ])
 
 # all_file_lists = [file_list_cover, file_list_LSB, file_list_HOGO, file_list_WOW, file_list_UNIWARD]
@@ -62,7 +78,6 @@ steganalysis_model = SteganalysisModel()
 steganalysis_model = steganalysis_model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(steganalysis_model.parameters(), lr=0.001, momentum=0.95)
-scheduler = ReduceLROnPlateau(optimizer, mode='max', patience=5, factor=0.1, verbose=True)
 
 early_stopping_counter = 0
 best_val_accuracy = 0.0
@@ -79,6 +94,7 @@ for epoch in range(100):
         optimizer.zero_grad()
         outputs = steganalysis_model(images)
         loss = criterion(outputs, labels)
+        print(f'    loss = {loss}')
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -122,7 +138,6 @@ for epoch in range(100):
         class_acc = class_correct[i] / class_total[i] if class_total[i] != 0 else 0
         print(f'Class {i} Accuracy: {class_acc * 100:.2f}%')
 
-    scheduler.step(val_accuracy)
 
     # Check for early stopping
     if val_accuracy > best_val_accuracy:
