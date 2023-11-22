@@ -15,18 +15,13 @@ class MultiScaleAvgPool2d(nn.Module):
 
     def forward(self, x):
         pooled_outputs = [pool_layer(x) for pool_layer in self.pool_layers]
-
-        # Find the maximum spatial dimensions
         max_height = max(output.size(2) for output in pooled_outputs)
         max_width = max(output.size(3) for output in pooled_outputs)
-
-        # Pad tensors to the maximum spatial dimensions
         padded_outputs = [
             F.pad(output, (0, max_width - output.size(3), 0, max_height - output.size(2)))
             for output in pooled_outputs
         ]
 
-        # Adjust the number of channels dynamically
         min_channels = min(output.size(1) for output in padded_outputs)
         padded_outputs = [output[:, :min_channels, :, :] for output in padded_outputs]
 
@@ -37,53 +32,53 @@ class MultiScaleAvgPool2d(nn.Module):
 class SteganalysisModel(nn.Module):
     def __init__(self, num_classes=6):
         super(SteganalysisModel, self).__init__()
-        self.conv1 = nn.Conv2d(3, 30, kernel_size=5, stride=1, padding=2)
+        self.conv1 = nn.Conv2d(3, 30, kernel_size=5, stride= 1, padding=2)
         self.activation1 = nn.Tanh()
-        self.batch_norm1 = nn.BatchNorm2d(30)
+        self.batch_norm1 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
 
         self.depthwise_conv = nn.Conv2d(30, 30, kernel_size=3, stride=1, padding=1, groups=30, bias=False)
-        self.activation2 = nn.LeakyReLU(negative_slope=0.01)
-        self.batch_norm2 = nn.BatchNorm2d(30)
+        self.activation2 = nn.LeakyReLU(negative_slope= -0.1)
+        self.batch_norm2 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
 
         self.depthwise_conv2 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2, groups=30, bias=False)
-        self.activation3 = nn.LeakyReLU(negative_slope=0.01)
-        self.batch_norm3 = nn.BatchNorm2d(60)
+        self.activation3 = nn.LeakyReLU(negative_slope= -0.1)
+        self.batch_norm3 = nn.BatchNorm2d(60, momentum=0.2, eps=0.001)
 
         self.conv2 = nn.Conv2d(60, 60, kernel_size=5, stride=1, padding=2)
-        self.activation4 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation4 = nn.LeakyReLU(negative_slope= -0.1)
         self.avgpool = nn.AvgPool2d(kernel_size=2, stride=2)
 
         self.conv3 = nn.Conv2d(60, 60, kernel_size=5, stride=1, padding=2)
-        self.activation41 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation41 = nn.LeakyReLU(negative_slope= -0.1)
         self.avgpool2 = nn.AvgPool2d(kernel_size=2, stride=2)
 
         self.depthwise_conv3 = nn.Conv2d(60, 60, kernel_size=3, stride=1, padding=1, groups=30, bias=False)
-        self.activation6 = nn.LeakyReLU(negative_slope=0.01)
-        self.batch_norm4 = nn.BatchNorm2d(60)
+        self.activation6 = nn.LeakyReLU(negative_slope= -0.1)
+        self.batch_norm4 = nn.BatchNorm2d(60, momentum=0.2, eps=0.001)
 
         self.depthwise_conv4 = nn.Conv2d(60, 30, kernel_size=3, stride=1, padding=1, groups=30, bias=False)
-        self.activation7 = nn.LeakyReLU(negative_slope=0.01)
-        self.batch_norm5 = nn.BatchNorm2d(30)
+        self.activation7 = nn.LeakyReLU(negative_slope= -0.1)
+        self.batch_norm5 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
 
         self.conv4 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
-        self.activation8 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation8 = nn.LeakyReLU(negative_slope= -0.1)
 
         self.conv5 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
-        self.activation9 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation9 = nn.LeakyReLU(negative_slope= -0.1)
 
-        self.batch_norm7 = nn.BatchNorm2d(60)
+        self.batch_norm7 = nn.BatchNorm2d(60, momentum=0.2, eps=0.001)
 
         # Replace nn.AvgPool2d with MultiScaleAvgPool2d
         self.avgpool10 = MultiScaleAvgPool2d(kernel_sizes=[2, 3, 4], strides=[2, 2, 2])
 
         self.conv6 = nn.Conv2d(60, 30, kernel_size=5, stride=1, padding=2)
-        self.activation10 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation10 = nn.LeakyReLU(negative_slope= -0.1)
         self.avgpool3 = nn.AvgPool2d(kernel_size=2, stride=2)
 
         self.conv7 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
-        self.activation11 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation11 = nn.LeakyReLU(negative_slope= -0.1)
         self.conv8 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
-        self.activation12 = nn.LeakyReLU(negative_slope=0.01)
+        self.activation12 = nn.LeakyReLU(negative_slope= -0.1)
 
         out_channels_fc1 = 90 * 17 * 17
 
