@@ -12,11 +12,10 @@ from tqdm import tqdm
 from function_gpu_accessibility import gpu_acces
 from function_dataload import dataload
 from function_model import SteganalysisModel
-from scipy.ndimage import convolve
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 gpu_acces()
-payload = 0.1
+payload = 0.4
 file_list_cover, file_list_WOW, file_list_UNIWARD = dataload(payload)
 
 
@@ -90,7 +89,7 @@ for epoch in range(100):
         # Print training accuracy for each class
         for i in range(len(all_file_lists)):
             accuracy = correct[i] / total_samples[i] if total_samples[i] != 0 else 0
-            print(accuracy)
+
 
     average_loss = total_loss / len(train_loader)
     epoch_end_time = time.time()

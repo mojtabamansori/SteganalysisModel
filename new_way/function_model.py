@@ -3,12 +3,13 @@ import torch
 import numpy as np
 import torch
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-srm_weights = torch.from_numpy(np.load('SRM_Kernels.npy')).float()
-srm_weights = srm_weights[:3, :3, :, :]
-biasSRM = torch.ones(3).float()
-
+k2 = np.load('SRM_Kernels.npy')
+srm_weights_pt = torch.from_numpy(k2.transpose(3, 2, 0, 1))
+srm_weights = srm_weights_pt
+biasSRM = torch.ones(30).float()
 
 class SRMLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, srm_weights, biasSRM):
@@ -17,7 +18,6 @@ class SRMLayer(nn.Module):
         self.conv.weight.data = srm_weights
         self.conv.bias.data = biasSRM
         self.conv.requires_grad = False
-
     def forward(self, x):
         return self.conv(x)
 
@@ -54,10 +54,10 @@ class SteganalysisModel(nn.Module):
     def __init__(self, num_classes=3):
         super(SteganalysisModel, self).__init__()
 
-        self.srm_layer = SRMLayer(in_channels=3, out_channels=30, kernel_size=5, srm_weights=srm_weights,
+        self.srm_layer = SRMLayer(in_channels=1, out_channels=3, kernel_size=5, srm_weights=srm_weights,
                                   biasSRM=biasSRM)
 
-        self.conv1 = nn.Conv2d(3, 30, kernel_size=5, stride= 1, padding=2)
+        self.conv1 = nn.Conv2d(90, 30, kernel_size=5, stride= 1, padding=2)
         self.activation1 = nn.Tanh()
         self.batch_norm1 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
 
@@ -105,7 +105,7 @@ class SteganalysisModel(nn.Module):
         self.conv8 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
         self.activation12 = nn.LeakyReLU(negative_slope= -0.1)
 
-        out_channels_fc1 = 90 * 17 * 15
+        out_channels_fc1 = 90 * 16 * 16
 
         # Add fully connected layers
         self.fc1 = nn.Linear(out_channels_fc1, 512)
@@ -115,8 +115,18 @@ class SteganalysisModel(nn.Module):
         self.fc3 = nn.Linear(256, num_classes)
 
     def forward(self, x):
-        x = self.srm_layer(x)
+        x_1 = x[:, 0, :, :]
+        x_1 = torch.reshape(x_1, (64, 1, 256, 256))
+        x_1 = self.srm_layer(x_1)
 
+        x_2 = x[:, 1, :, :]
+        x_2 = torch.reshape(x_2, (64, 1, 256, 256))
+        x_2 = self.srm_layer(x_2)
+
+        x_3 = x[:, 2, :, :]
+        x_3 = torch.reshape(x_3, (64, 1, 256, 256))
+        x_3 = self.srm_layer(x_3)
+        x = torch.concatenate((x_1,x_2,x_3),dim=1)
         x = self.conv1(x)
         out_out_1 = self.activation1(x)
         out_out_2 = self.batch_norm1(out_out_1)
@@ -169,7 +179,6 @@ class SteganalysisModel(nn.Module):
         out_out_21 = self.conv8(out_out_20)
         out_out_21 = self.activation11(out_out_21)
 
-        # Change the following line to use multi-scale average pooling
         out_out_22 = self.avgpool10(out_out_21)
         x_flat = out_out_22.view(out_out_22.size(0), -1)
 
