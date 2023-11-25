@@ -1,8 +1,29 @@
 import torch.nn as nn
 import torch
+import numpy as np
+import torch
 import torch.nn.functional as F
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+srm_weights = torch.from_numpy(np.load('SRM_Kernels.npy')).float()
+srm_weights = srm_weights[:3, :3, :, :]
+biasSRM = torch.ones(3).float()
+
+
+class SRMLayer(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, srm_weights, biasSRM):
+        super(SRMLayer, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, bias=True)
+        self.conv.weight.data = srm_weights
+        self.conv.bias.data = biasSRM
+        self.conv.requires_grad = False
+
+    def forward(self, x):
+        return self.conv(x)
+
+def Tanh3(x):
+    tanh3 = torch.tanh(x) * 3
+    return tanh3
 
 
 class MultiScaleAvgPool2d(nn.Module):
@@ -30,8 +51,12 @@ class MultiScaleAvgPool2d(nn.Module):
 
 
 class SteganalysisModel(nn.Module):
-    def __init__(self, num_classes=6):
+    def __init__(self, num_classes=3):
         super(SteganalysisModel, self).__init__()
+
+        self.srm_layer = SRMLayer(in_channels=3, out_channels=30, kernel_size=5, srm_weights=srm_weights,
+                                  biasSRM=biasSRM)
+
         self.conv1 = nn.Conv2d(3, 30, kernel_size=5, stride= 1, padding=2)
         self.activation1 = nn.Tanh()
         self.batch_norm1 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
@@ -80,7 +105,7 @@ class SteganalysisModel(nn.Module):
         self.conv8 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2)
         self.activation12 = nn.LeakyReLU(negative_slope= -0.1)
 
-        out_channels_fc1 = 90 * 17 * 17
+        out_channels_fc1 = 90 * 17 * 15
 
         # Add fully connected layers
         self.fc1 = nn.Linear(out_channels_fc1, 512)
@@ -90,6 +115,8 @@ class SteganalysisModel(nn.Module):
         self.fc3 = nn.Linear(256, num_classes)
 
     def forward(self, x):
+        x = self.srm_layer(x)
+
         x = self.conv1(x)
         out_out_1 = self.activation1(x)
         out_out_2 = self.batch_norm1(out_out_1)
@@ -144,7 +171,6 @@ class SteganalysisModel(nn.Module):
 
         # Change the following line to use multi-scale average pooling
         out_out_22 = self.avgpool10(out_out_21)
-
         x_flat = out_out_22.view(out_out_22.size(0), -1)
 
         out_out_23 = self.fc1(x_flat)

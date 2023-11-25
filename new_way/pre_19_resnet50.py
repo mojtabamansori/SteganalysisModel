@@ -14,23 +14,6 @@ from function_dataload import dataload
 from function_model import SteganalysisModel
 from scipy.ndimage import convolve
 
-from scipy.fftpack import dct
-
-filter = np.load('SRM_Kernels.npy')
-print(filter.shape)
-
-class ApplyFilter:
-    def __init__(self, filter_matrix):
-        self.filter_matrix = filter_matrix
-
-    def __call__(self, img):
-        img = np.array(img)
-        # Apply the filter to each channel of the image
-        for i in range(img.shape[2]):
-            img[:, :, i] = convolve(img[:, :, i], self.filter_matrix[:, :, 0, i], mode='nearest')
-        return Image.fromarray(img.astype('uint8'))
-
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 gpu_acces()
 payload = 0.1
@@ -60,7 +43,6 @@ class UnifiedSteganographyDataset(Dataset):
         return image, label
 
 transform = transforms.Compose([
-    ApplyFilter(filter),
     transforms.ToTensor(),
 ])
 
@@ -108,6 +90,7 @@ for epoch in range(100):
         # Print training accuracy for each class
         for i in range(len(all_file_lists)):
             accuracy = correct[i] / total_samples[i] if total_samples[i] != 0 else 0
+            print(accuracy)
 
     average_loss = total_loss / len(train_loader)
     epoch_end_time = time.time()
