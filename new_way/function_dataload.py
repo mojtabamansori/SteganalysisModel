@@ -1,15 +1,7 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import torchvision.transforms as transforms
-from torchvision.models import resnet50
-from sklearn.metrics import accuracy_score
-import time
+import numpy as np
 import os
 import glob
-from PIL import Image
-from tqdm import tqdm
+
 
 
 
@@ -33,6 +25,7 @@ def dataload(payload):
     # file_list_HOGO = glob.glob(os.path.join(base_folder_HOGO, '*'))
     file_list_WOW = glob.glob(os.path.join(base_folder_WOW, '*'))
     file_list_UNIWARD = glob.glob(os.path.join(base_folder_UNIWARD, '*'))
+
 
     return file_list_cover, file_list_WOW, file_list_UNIWARD
     # return file_list_cover,file_list_LSB,file_list_HOGO,file_list_WOW,file_list_UNIWARD

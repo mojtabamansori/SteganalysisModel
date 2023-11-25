@@ -1,5 +1,4 @@
 import numpy as np
-
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -13,28 +12,30 @@ from tqdm import tqdm
 from function_gpu_accessibility import gpu_acces
 from function_dataload import dataload
 from function_model import SteganalysisModel
-
+from scipy.ndimage import convolve
 
 from scipy.fftpack import dct
 
-class DCTTransform(object):
-    def __init__(self):
-        pass
+filter = np.load('SRM_Kernels.npy')
+print(filter.shape)
+
+class ApplyFilter:
+    def __init__(self, filter_matrix):
+        self.filter_matrix = filter_matrix
 
     def __call__(self, img):
-        # Assuming img is a tensor
-        img = img.numpy()
+        img = np.array(img)
+        # Apply the filter to each channel of the image
+        for i in range(img.shape[2]):
+            img[:, :, i] = convolve(img[:, :, i], self.filter_matrix[:, :, 0, i], mode='nearest')
+        return Image.fromarray(img.astype('uint8'))
 
-        # Apply 2D DCT to each channel
-        for i in range(img.shape[0]):
-            img[i] = dct(dct(img[i], axis=0, norm='ortho'), axis=1, norm='ortho')
-
-        return torch.from_numpy(img)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 gpu_acces()
 payload = 0.1
 file_list_cover, file_list_WOW, file_list_UNIWARD = dataload(payload)
+
 
 class UnifiedSteganographyDataset(Dataset):
     def __init__(self, file_lists, labels, transform=None):
@@ -52,18 +53,17 @@ class UnifiedSteganographyDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path, label = self.all_files[idx]
-        image = np.array(Image.open(img_path).convert('RGB'),dtype=np.float32)
+        image = np.array(Image.open(img_path).convert('RGB'), dtype=np.float32)
         if self.transform:
             image = self.transform(image)
 
         return image, label
 
 transform = transforms.Compose([
+    ApplyFilter(filter),
     transforms.ToTensor(),
-    DCTTransform()
 ])
 
-# all_file_lists = [file_list_cover, file_list_LSB, file_list_HOGO, file_list_WOW, file_list_UNIWARD]
 all_file_lists = [file_list_cover, file_list_WOW, file_list_UNIWARD]
 labels = list(range(len(all_file_lists)))
 unified_dataset = UnifiedSteganographyDataset(all_file_lists, labels, transform=transform)
@@ -105,10 +105,9 @@ for epoch in range(100):
             total_samples[i] += (labels == i).sum().item()
             correct[i] += (predicted == labels).logical_and(labels == i).sum().item()
 
-        # Print training accuracy for each class`
+        # Print training accuracy for each class
         for i in range(len(all_file_lists)):
             accuracy = correct[i] / total_samples[i] if total_samples[i] != 0 else 0
-            # print(f'\nBatch Class {i} Accuracy: {accuracy * 100:.2f}%')
 
     average_loss = total_loss / len(train_loader)
     epoch_end_time = time.time()
@@ -137,7 +136,6 @@ for epoch in range(100):
     for i in range(len(all_file_lists)):
         class_acc = class_correct[i] / class_total[i] if class_total[i] != 0 else 0
         print(f'Class {i} Accuracy: {class_acc * 100:.2f}%')
-
 
     # Check for early stopping
     if val_accuracy > best_val_accuracy:
