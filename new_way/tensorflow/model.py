@@ -1,73 +1,149 @@
-import tensorflow as tf
+import numpy as np
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, SpatialDropout2D, BatchNormalization, LeakyReLU
 from tensorflow.keras.initializers import glorot_normal
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import SGD
-from function_dataload import dataload
-from tensorflow.keras.preprocessing.image import img_to_array, array_to_img
-import numpy as np
-from PIL import Image
 from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from function_dataload import dataload
+from tensorflow.keras import backend as K
 
 
-def load_and_preprocess_image(image_path):
-    image = Image.open(image_path)
-    image = img_to_array(image)
-    image = image / 255.0
-    return image
-def create_tf_dataset(file_lists, labels, batch_size):
-    all_files = []
-    for i, file_list in enumerate(file_lists):
-        all_files.extend([(file_path, i) for file_path in file_list])
+# Data Loader Function
+def data_loader(file_paths, labels, image_size=(256, 256), batch_size=32, shuffle=True):
+    num_samples = len(file_paths)
+    indices = np.arange(num_samples)
 
-    paths, labels = zip(*all_files)
+    if shuffle:
+        np.random.shuffle(indices)
 
-    dataset = tf.data.Dataset.from_tensor_slices((paths, labels))
-    dataset = dataset.map(lambda x, y: (load_and_preprocess_image(x), y))
-    dataset = dataset.shuffle(buffer_size=len(paths))
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    while True:
+        for start in range(0, num_samples, batch_size):
+            end = min(start + batch_size, num_samples)
+            batch_indices = indices[start:end]
 
-    return dataset
+            batch_files = [file_paths[i] for i in batch_indices]
+            batch_labels = [labels[i] for i in batch_indices]
 
-payload = 0.4
-file_list_cover, file_list_WOW, file_list_UNIWARD = dataload(payload)
+            X_batch = np.array([img_to_array(load_img(file, color_mode='grayscale', target_size=image_size)) for file in batch_files])
+            X_batch = X_batch / 255.0  # Normalize pixel values to the range [0, 1]
 
-all_file_lists = [file_list_cover, file_list_WOW]
+            y_batch = np.array(batch_labels)
 
-labels = list(range(len(all_file_lists)))
-paths_train, paths_val, labels_train, labels_val = train_test_split(all_file_lists, labels, test_size=0.2, random_state=42)
-train_dataset = create_tf_dataset(paths_train, labels_train, batch_size=64)
-val_dataset = create_tf_dataset(paths_val, labels_val, batch_size=64)
+            yield X_batch, y_batch
 
-print("Train dataset size:", len(train_dataset))
-print("Validation dataset size:", len(val_dataset))
-
+# Parameters
 batch_size = 64
 epochs = 100
 spatial_dropout = 0.1
 bn_momentum = 0.2
 epsilon = 0.001
 norm_momentum = 0.4
-leakyrelu_slope = -0.1
+leakyrelu_slope = 0.1  # Corrected the slope to be positive
 momentum_sgd = 0.95
 learning_rate = 0.001
+payload = 0.4
 
+# Data Loading
+file_list_cover, file_list_WOW, file_list_UNIWARD = dataload(payload)
+labels_cover = [0] * len(file_list_cover)
+labels_wow = [1] * len(file_list_WOW)
+all_files = file_list_cover + file_list_WOW
+all_labels = labels_cover + labels_wow
+train_files, test_files, train_labels, test_labels = train_test_split(all_files, all_labels, test_size=0.2, random_state=42)
+
+# Model Definition
 model = Sequential()
 
-model.add(Conv2D(filters=32, kernel_size=(3, 3), activation='linear', kernel_initializer=glorot_normal(), kernel_regularizer=l2(0.01), input_shape=(input_shape)))
-model.add(BatchNormalization(momentum=bn_momentum, epsilon=epsilon))
-model.add(LeakyReLU(alpha=leakyrelu_slope))
-model.add(SpatialDropout2D(spatial_dropout))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Flatten())
-model.add(Dense(units=128, activation='linear', kernel_initializer=glorot_normal(), kernel_regularizer=l2(0.01)))
-model.add(BatchNormalization(momentum=bn_momentum, epsilon=epsilon))
-model.add(LeakyReLU(alpha=leakyrelu_slope))
-model.add(Dense(units=output_dim, activation='softmax', kernel_initializer=glorot_normal(), kernel_regularizer=l2(0.01)))
+import tensorflow as tf
+from tensorflow.keras import layers, models
 
+srm_weights = np.load('SRM_Kernels.npy')
+biasSRM=np.ones(30)
+
+T3 = 3;
+def Tanh3(x):
+    tanh3 = K.tanh(x)*T3
+    return tanh3
+
+def steganalysis_model(num_classes=2):
+    input_layer = layers.Input(shape=(256, 256, 1))
+
+    x = layers.Conv2D(30, (5, 5), weights=[srm_weights, biasSRM], strides=(1, 1), trainable=False,
+                      activation=Tanh3, use_bias=True)(input_layer)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.DepthwiseConv2D(kernel_size=5, strides=1, padding='same', depth_multiplier=1, use_bias=False)(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.Conv2D(60, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.AvgPool2D(pool_size=2, strides=2)(x)
+
+    x = layers.Conv2D(60, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.AvgPool2D(pool_size=2, strides=2)(x)
+
+    x = layers.DepthwiseConv2D(kernel_size=3, strides=1, padding='same', depth_multiplier=2, use_bias=False)(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.DepthwiseConv2D(kernel_size=3, strides=1, padding='same', depth_multiplier=1, use_bias=False)(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.Conv2D(30, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.Conv2D(30, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.Conv2D(30, kernel_size=6, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.AvgPool2D(pool_size=2, strides=2)(x)
+
+    x = layers.Conv2D(30, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+
+    x = layers.Conv2D(30, kernel_size=5, strides=1, padding='same')(x)
+    x = layers.LeakyReLU(alpha=-0.1)(x)
+    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+        layers.M
+    x = layers.Flatten()(x)
+
+    x = layers.Dense(512, activation='relu')(x)
+    x = layers.Dense(256, activation='relu')(x)
+    output_layer = layers.Dense(num_classes, activation='softmax')(x)
+
+    model = models.Model(inputs=input_layer, outputs=output_layer)
+
+    return model
+
+model = steganalysis_model()
+model.build((None, 256, 256, 1))  # Adjust input shape based on your data
 
 sgd = SGD(learning_rate=learning_rate, momentum=momentum_sgd)
-model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer=sgd, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Training
+train_loader = data_loader(train_files, train_labels, batch_size=batch_size)
+test_loader = data_loader(test_files, test_labels, batch_size=batch_size, shuffle=False)
+
 model.summary()
+model.fit(train_loader, epochs=epochs, steps_per_epoch=len(train_files)//batch_size,
+          validation_data=test_loader, validation_steps=len(test_files)//batch_size)
+
+# Evaluation
+evaluation = model.evaluate(test_loader, steps=len(test_files)//batch_size)
+print(f"Test Loss: {evaluation[0]}, Test Accuracy: {evaluation[1]}")
