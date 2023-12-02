@@ -12,6 +12,7 @@ from tqdm import tqdm
 from function_gpu_accessibility import gpu_acces
 from function_dataload import dataload
 from function_model import SteganalysisModel
+import matplotlib.pyplot as plt
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 gpu_acces()
@@ -35,7 +36,7 @@ class UnifiedSteganographyDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path, label = self.all_files[idx]
-        image = np.array(Image.open(img_path).convert('RGB'), dtype=np.float32)
+        image = np.array(Image.open(img_path), dtype=np.float32)
         if self.transform:
             image = self.transform(image)
 
@@ -45,7 +46,9 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-all_file_lists = [file_list_cover, file_list_WOW, file_list_UNIWARD]
+# all_file_lists = [file_list_cover, file_list_WOW, file_list_UNIWARD]
+all_file_lists = [file_list_cover, file_list_WOW]
+
 labels = list(range(len(all_file_lists)))
 unified_dataset = UnifiedSteganographyDataset(all_file_lists, labels, transform=transform)
 train_size = int(0.8 * len(unified_dataset))
@@ -64,6 +67,7 @@ early_stopping_counter = 0
 best_val_accuracy = 0.0
 
 for epoch in range(100):
+
     steganalysis_model.train()
     epoch_start_time = time.time()
     total_loss = 0.0
