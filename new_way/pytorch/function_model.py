@@ -58,7 +58,7 @@ class SteganalysisModel(nn.Module):
         super(SteganalysisModel, self).__init__()
         self.batch_norm1 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
         self.depthwise_conv = nn.Conv2d(30, 30, kernel_size=3, stride=1, padding=1, groups=30, bias=False)
-        self.activation2 = nn.LeakyReLU(negative_slope= -0.1)
+        self.activation2 = nn.LeakyReLU(negative_slope=-0.1)
         self.batch_norm2 = nn.BatchNorm2d(30, momentum=0.2, eps=0.001)
 
         self.depthwise_conv2 = nn.Conv2d(30, 30, kernel_size=5, stride=1, padding=2, groups=30, bias=False)

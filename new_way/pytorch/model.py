@@ -17,7 +17,7 @@ class SRMConv(nn.Module):
         """Constructor."""
         super().__init__()
         self.device = torch.device(
-            'cuda'
+            "cuda:0" if torch.cuda.is_available() else "cpu"
         )
         self.srm = torch.from_numpy(np.load(".\\srm.npy")).to(
             self.device, dtype=torch.float
@@ -92,7 +92,7 @@ class YeNet(nn.Module):
         self.layer7 = ConvBlock(32, 16, kernel_size=3)
         self.layer8 = ConvBlock(16, 16, kernel_size=3, stride=3)
         self.fully_connected = nn.Sequential(
-            nn.Linear(in_features=16 * 3 * 3, out_features=3),
+            nn.Linear(in_features=16 * 3 * 3, out_features=2),
             nn.LogSoftmax(dim=1),
         )
 
@@ -115,7 +115,7 @@ class YeNet(nn.Module):
 
 
 if __name__ == "__main__":
-    net = YeNet().to('cuda')
+    net = YeNet()
     print(net)
-    inp_image = torch.randn((1, 1, 256, 256)).to('cuda')
+    inp_image = torch.randn((1, 1, 256, 256))
     print(net(inp_image))

@@ -3,10 +3,11 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-srm_filters = np.load("srm.npy")
-
+srm_16filters = np.load("./srm_16_filters.npy")
+srm_minmax = np.load("./minmax_filters.npy")
+srm_filters = np.concatenate((srm_16filters, srm_minmax), axis=0)
 
 srm_filters = torch.from_numpy(srm_filters).to(device=device, dtype=torch.float)
 srm_filters = torch.autograd.Variable(srm_filters, requires_grad=True)

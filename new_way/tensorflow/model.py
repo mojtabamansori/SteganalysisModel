@@ -70,15 +70,20 @@ def Tanh3(x):
 def steganalysis_model(num_classes=2):
     input_layer = layers.Input(shape=(256, 256, 1))
 
-    x = layers.Conv2D(30, (5, 5), weights=[srm_weights, biasSRM], strides=(1, 1), trainable=False,
+    o1 = layers.Conv2D(30, (5, 5), weights=[srm_weights, biasSRM], strides=(1, 1), padding='same', trainable=False,
                       activation=Tanh3, use_bias=True)(input_layer)
-    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+    o2 = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(o1)
 
-    x = layers.DepthwiseConv2D(kernel_size=5, strides=1, padding='same', depth_multiplier=1, use_bias=False)(x)
-    x = layers.LeakyReLU(alpha=-0.1)(x)
-    x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
+    o3 = layers.DepthwiseConv2D(kernel_size=(1,1), strides=1, padding='same', depth_multiplier=1, use_bias=False)(o2)
+    o3 = layers.LeakyReLU(alpha=-0.1)(o3)
+    o4 = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(o3)
 
-    x = layers.Conv2D(60, kernel_size=5, strides=1, padding='same')(x)
+    o5 = layers.DepthwiseConv2D(kernel_size=(1, 1), strides=1, padding='same', depth_multiplier=1, use_bias=False)(o4)
+    o5 = layers.LeakyReLU(alpha=-0.1)(o5)
+
+    o6 = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(layers.concatenate([o5, o2]))
+
+    x = layers.Conv2D(60, kernel_size=5, strides=1, padding='same')(o6)
     x = layers.LeakyReLU(alpha=-0.1)(x)
     x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
 
@@ -119,11 +124,10 @@ def steganalysis_model(num_classes=2):
     x = layers.Conv2D(30, kernel_size=5, strides=1, padding='same')(x)
     x = layers.LeakyReLU(alpha=-0.1)(x)
     x = layers.BatchNormalization(momentum=0.2, epsilon=0.001)(x)
-        layers.M
     x = layers.Flatten()(x)
 
     x = layers.Dense(512, activation='relu')(x)
-    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dense(128, activation='relu')(x)
     output_layer = layers.Dense(num_classes, activation='softmax')(x)
 
     model = models.Model(inputs=input_layer, outputs=output_layer)
